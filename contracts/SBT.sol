@@ -15,6 +15,12 @@ contract SBT is ERC20, ERC20Burnable, Ownable {
         }
     }
 
+    function batchBurn(address[] memory accounts, uint256 amount) public {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _burn(accounts[i], amount);
+        }
+    }
+
     function transfer(address to, uint256 value) public pure override returns (bool) {
         revert("Transfers are currently disabled for this token.");
     }

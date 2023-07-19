@@ -9,6 +9,7 @@ interface IERC20 {
     function approve(address spender, uint256 value) external returns (bool);
     function transferFrom(address from, address to, uint256 value) external returns (bool);
     function batchMint(address[] memory to, uint256 amount) external;
+    function batchBurn(address[] memory accounts, uint256 amount) external;
 }
 
 contract VotingContract {
@@ -118,8 +119,10 @@ contract VotingContract {
     function distributeTokens() external votingPeriodEnded distributedVotes {
         if(yesVotes > noVotes) {
             sbtToken.batchMint(yesVoters, 1 ether);
+            sbtToken.batchBurn(noVoters, 1 ether);
         } else if(noVotes > yesVotes) {
             sbtToken.batchMint(noVoters, 1 ether);
+            sbtToken.batchBurn(yesVoters, 1 ether);
         }
 
         votesDistributed = true;
