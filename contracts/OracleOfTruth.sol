@@ -8,7 +8,7 @@ interface IERC20 {
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 value) external returns (bool);
     function transferFrom(address from, address to, uint256 value) external returns (bool);
-    function batchMint(address[] memory to, uint256[] memory amount) external returns (bool);
+    function batchMint(address[] memory to, uint256 amount) external;
 }
 
 contract VotingContract {
@@ -21,20 +21,25 @@ contract VotingContract {
     // The address of the contract creator who can end the voting
     address public owner;
 
+    // The proposal that users are voting on
+    string public proposal;
+
     // Voting time variables
     uint256 public votingStartTime;
     uint256 public votingEndTime;
 
     // Mapping to store voter information
-    mapping(address => Voter) public voters;
+    mapping(address => Voter) private voters;
 
     // Array of voters
     address[] private yesVoters;
     address[] private noVoters;
 
     // Variables to keep track of the vote count
-    uint256 public yesVotes;
-    uint256 public noVotes;
+    uint256 private yesVotes;
+    uint256 private noVotes;
+
+    bool private votesDistributed;
 
     // SBT token contract
     IERC20 private sbtToken;
@@ -49,16 +54,23 @@ contract VotingContract {
         _;
     }
 
+    modifier distributedVotes() {
+        require(!votesDistributed, "Votes are distributes");
+        _;
+    }
+
     // Modifier to ensure only the contract creator can execute certain functions
     modifier onlyOwner() {
         require(msg.sender == owner, "You are not the contract owner.");
         _;
     }
 
-    constructor(uint256 _votingDurationSeconds, address sbtAddress) {
+    constructor(string memory _proposal, uint256 _votingDurationSeconds, address sbtAddress) {
         sbtToken = IERC20(sbtAddress);
 
+        proposal = _proposal;
         owner = msg.sender;
+        votesDistributed = false;
 
         votingStartTime = block.timestamp;
         votingEndTime = votingStartTime + _votingDurationSeconds;
@@ -103,12 +115,13 @@ contract VotingContract {
         emit Voted(msg.sender, false);
     }
 
-    function distributeTokens() external votingPeriodEnded {
-        
-        if(yesVotes >= noVotes) {
-
-        } else {
-
+    function distributeTokens() external votingPeriodEnded distributedVotes {
+        if(yesVotes > noVotes) {
+            sbtToken.batchMint(yesVoters, 1 ether);
+        } else if(noVotes > yesVotes) {
+            sbtToken.batchMint(noVoters, 1 ether);
         }
+
+        votesDistributed = true;
     }
 }
