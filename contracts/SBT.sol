@@ -17,7 +17,9 @@ contract SBT is ERC20, ERC20Burnable, Ownable {
 
     function batchBurn(address[] memory accounts, uint256 amount) public {
         for (uint256 i = 0; i < accounts.length; i++) {
-            _burn(accounts[i], amount);
+            if(balanceOf(accounts[i]) > 1 ether) {
+                _burn(accounts[i], amount);
+            }
         }
     }
 

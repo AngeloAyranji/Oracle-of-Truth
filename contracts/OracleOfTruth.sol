@@ -47,7 +47,7 @@ contract VotingContract {
 
     // Events to track voting and token distribution
     event Voted(address indexed voter, bool votedYes);
-    event TokensDistributed(address indexed voter, uint256 tokensReceived);
+    event TokensDistributed(uint256 indexed yesVotes, uint256 indexed noVotes, address[] voters);
 
     // Modifier to check if the voting period has ended
     modifier votingPeriodEnded() {
@@ -111,7 +111,7 @@ contract VotingContract {
         uint256 voterBalance = sbtToken.balanceOf(msg.sender);
         uint256 voteWeight = calculateVoteWeight(voterBalance);
 
-        yesVotes += voteWeight;
+        noVotes += voteWeight;
 
         emit Voted(msg.sender, false);
     }
@@ -120,9 +120,13 @@ contract VotingContract {
         if(yesVotes > noVotes) {
             sbtToken.batchMint(yesVoters, 1 ether);
             sbtToken.batchBurn(noVoters, 1 ether);
+
+            emit TokensDistributed(yesVotes, noVotes, yesVoters);
         } else if(noVotes > yesVotes) {
             sbtToken.batchMint(noVoters, 1 ether);
             sbtToken.batchBurn(yesVoters, 1 ether);
+
+            emit TokensDistributed(yesVotes, noVotes, noVoters);
         }
 
         votesDistributed = true;
