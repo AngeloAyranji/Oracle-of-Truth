@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./PaymentSplitter.sol";
+
 interface IERC20 {
     function totalSupply() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);
@@ -12,7 +14,7 @@ interface IERC20 {
     function batchBurn(address[] memory accounts, uint256 amount) external;
 }
 
-contract VotingContract {
+contract VotingContract is PaymentSplitter {
     // Structure to hold voter information
     struct Voter {
         bool hasVoted;
@@ -34,7 +36,9 @@ contract VotingContract {
 
     // Array of voters
     address[] private yesVoters;
+    uint256[] private yesVotersWeight;
     address[] private noVoters;
+    uint256[] private noVotersWeight;
 
     // Variables to keep track of the vote count
     uint256 private yesVotes;
@@ -66,7 +70,7 @@ contract VotingContract {
         _;
     }
 
-    constructor(string memory _proposal, uint256 _votingDurationSeconds, address sbtAddress) {
+    constructor(string memory _proposal, uint256 _votingDurationSeconds, address sbtAddress) PaymentSplitter() payable {
         sbtToken = IERC20(sbtAddress);
 
         proposal = _proposal;
@@ -92,7 +96,9 @@ contract VotingContract {
 
         uint256 voterBalance = sbtToken.balanceOf(msg.sender);
         uint256 voteWeight = calculateVoteWeight(voterBalance);
+        
         yesVoters.push(msg.sender);
+        yesVotersWeight.push(voteWeight);
 
         yesVotes += voteWeight;
         
@@ -106,10 +112,12 @@ contract VotingContract {
 
         voters[msg.sender].hasVoted = true;
         voters[msg.sender].votedYes = false;
-        noVoters.push(msg.sender);
 
         uint256 voterBalance = sbtToken.balanceOf(msg.sender);
         uint256 voteWeight = calculateVoteWeight(voterBalance);
+
+        noVoters.push(msg.sender);
+        noVotersWeight.push(voteWeight);
 
         noVotes += voteWeight;
 
@@ -121,12 +129,18 @@ contract VotingContract {
             sbtToken.batchMint(yesVoters, 1 ether);
             sbtToken.batchBurn(noVoters, 1 ether);
 
+            distributeEth(yesVoters, yesVotersWeight, yesVotes);
+
             emit TokensDistributed(yesVotes, noVotes, yesVoters);
         } else if(noVotes > yesVotes) {
             sbtToken.batchMint(noVoters, 1 ether);
             sbtToken.batchBurn(yesVoters, 1 ether);
 
+            distributeEth(noVoters, noVotersWeight, noVotes);
+
             emit TokensDistributed(yesVotes, noVotes, noVoters);
+        } else {
+            returnEth(owner);
         }
 
         votesDistributed = true;
